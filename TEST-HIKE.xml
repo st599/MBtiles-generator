@@ -1,0 +1,15 @@
+<?xml version="1.0" ?>
+<MapMetadata>
+   <Name>TEST-HIKE.mbtiles</Name>
+   <Description>Cycling map from hiking</Description>
+   <Bounds>
+      <MinLat>51.416552</MinLat>
+      <MinLon>-0.313797</MinLon>
+      <MaxLat>51.463205</MaxLat>
+      <MaxLon>-0.215608</MaxLon>
+   </Bounds>
+   <ZoomLevels>
+      <Min>14</Min>
+      <Max>16</Max>
+   </ZoomLevels>
+</MapMetadata>

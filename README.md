@@ -1,6 +1,6 @@
-# TeasiGen: Advanced Map Generator for TeasiOne
+# MBTile Generator: Advanced Map Generator for Bicycle Computers
 
-TeasiGen is a professional-grade Python utility designed to create high-performance offline maps for TeasiOne and Tahuna GPS devices. It handles tile downloading, coordinate projection math, and packages data into an optimized SQLite (`.mbtiles`) database and companion `metadata.xml`.
+MBTile Generator is a professional-grade Python utility designed to create high-performance offline maps - it's also an interesting experiment in AI code development 
 
 ## Key Features
 
@@ -21,14 +21,14 @@ pip install requests pillow requests
 ## Usage
 
 ```bash
-python map_gen.py --bbox MIN_LAT MIN_LON MAX_LAT MAX_LON [OPTIONS]
+python MBTiles-generator.py --bbox MIN_LAT MIN_LON MAX_LAT MAX_LON [OPTIONS]
 
 ```
 
 ### Example: Richmond Park & Kingston (London)
 
 ```bash
-python map_gen.py --bbox 51.416552 -0.313797 51.463205 -0.215608 --server cyclosm --output southwest_london.mbtiles
+python MBTiles-generator.py --bbox 51.416552 -0.313797 51.463205 -0.215608 --server cyclosm --output southwest_london.mbtiles
 
 ```
 
@@ -49,25 +49,10 @@ python map_gen.py --bbox 51.416552 -0.313797 51.463205 -0.215608 --server cyclos
 
 ## Geography & Projections
 
-TeasiGen handles the complex translation between different coordinate systems:
+MBTiles-generator handles the complex translation between different coordinate systems:
 
 1. **Input:** User provides GPS coordinates in Decimal Degrees ($WGS84$).
 2. **Processing:** Script converts these to Web Mercator ($EPSG:3857$) for tile fetching.
 3. **Storage:** Tiles are flipped to the **TMS (Tile Map Service)** standard required by MBTiles.
 
 ---
-
-## Installation on Teasi/Tahuna Devices
-
-1. **Generate:** Run the script to create your `.mbtiles` and `.xml` files.
-2. **Connect:** Plug your device into your computer via USB.
-3. **Deploy:** Copy both files to the **`Maps`** or **`Import`** folder on your SD card.
-4. **Rename (Optional):** If the device does not see the map, rename the file extension from `.mbtiles` to **`.mbt`**. Keep the `.xml` filename identical to the map filename.
-
-## Troubleshooting
-
-* **Blue/Empty Map:** Usually caused by inverted coordinates. Ensure you follow `min_lat min_lon max_lat max_lon`.
-* **Map "Off Center":** If the map appears in the wrong location, MapTiler might be reading cached metadata. Use the updated script version to force $EPSG:4326$ bounds.
-
----
-
