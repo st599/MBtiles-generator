@@ -1,3 +1,20 @@
+#!/usr/bin/env python3
+
+#
+#   MBTILES GENERATOR
+#
+#   Filename        :   MBTiles-generator.py
+#   Description     :   Playing with AI to create MBTiles suitable for bicycle computers such as TeasiOne
+#   Date            :   09/03/2026
+#   Author          :   Simon Thompson
+#   Copyright       :   (c) Simon Thompson 2026
+#   Dependencies    :   pillow, requests, python3
+#
+
+#
+#   SYSTEM IMPORTS
+#
+
 import math
 import sqlite3
 import requests
@@ -11,8 +28,11 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 from PIL import Image
 
+#
+# CONSTANTS
+#
+
 # --- LOGGING CONFIGURATION ---
-# Configured to output to stdout for real-time monitoring
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -21,28 +41,43 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Primary tile servers. 
-# Using the openstreetmap.fr mirror for cyclosm as it is generally more script-friendly.
 SERVERS = {
     'osm': 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     'cyclosm': 'https://{s}.tile.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png',
     'hiking': 'https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png'
 }
 
+
+# 
+# FUNCTIONS 
+#
+
+def print_gpl_header():
+    """Prints the GPLv3 license notice to the console at startup."""
+    header = """
+MBTiles Generator - Custom Map Generator
+Copyright (C) 2026  Simon Thompson
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    """
+    print(header)
+
+
 def deg2num(lat_deg, lon_deg, zoom):
     """
     Converts Latitude and Longitude to Slippy Map tile coordinates (X, Y).
-    
-    The Y coordinate calculation uses the Mercator projection logic to account 
-    for the curvature of the Earth on a flat map.
-    
-    Args:
-        lat_deg (float): Latitude in decimal degrees.
-        lon_deg (float): Longitude in decimal degrees.
-        zoom (int): The zoom level.
-        
-    Returns:
-        tuple: (xtile, ytile) as integers.
+    Uses the spherical Mercator projection.
     """
     lat_rad = math.radians(lat_deg)
     n = 2.0 ** zoom
@@ -50,16 +85,9 @@ def deg2num(lat_deg, lon_deg, zoom):
     ytile = int((1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi) / 2.0 * n)
     return (xtile, ytile)
 
+
 def create_teasi_metadata_xml(bbox, zoom_range, output_name, server_name):
-    """
-    Generates the .xml file required by Teasi/Tahuna devices for map indexing.
-    
-    Args:
-        bbox (list): [min_lat, min_lon, max_lat, max_lon].
-        zoom_range (range): Range of zoom levels.
-        output_name (str): Filename of the .mbtiles file.
-        server_name (str): Name of the map style provider.
-    """
+    """Generates the indexing .xml file required by Teasi/Tahuna hardware."""
     xml_path = os.path.splitext(output_name)[0] + ".xml"
     root = ET.Element("MapMetadata")
     ET.SubElement(root, "Name").text = os.path.basename(output_name)
@@ -80,23 +108,14 @@ def create_teasi_metadata_xml(bbox, zoom_range, output_name, server_name):
         f.write(xml_str)
     logger.info(f"Metadata XML created: {xml_path}")
 
+
 def get_tile_with_retry(url, zoom, x, y):
-    """
-    Attempts to download a single map tile using browser-mimicking headers.
-    
-    Args:
-        url (str): The template URL from SERVERS.
-        zoom, x, y (int): Tile coordinates.
-        
-    Returns:
-        bytes: Raw image data or None if unsuccessful.
-    """
+    """Fetches a tile with browser headers to bypass server blocks."""
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
         'Referer': 'https://www.cyclosm.org/'
     }
-    
     subdomains = ['a', 'b', 'c'] if '{s}' in url else ['']
     for sub in subdomains:
         try:
@@ -108,11 +127,9 @@ def get_tile_with_retry(url, zoom, x, y):
             continue
     return None
 
+
 def verify_mbtiles(db_path):
-    """
-    Checks the SQLite metadata and tile health after generation.
-    Displays average tile size to verify compression efficiency.
-    """
+    """Checks the SQLite health and prints tile storage statistics."""
     if not os.path.exists(db_path): return
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -130,12 +147,17 @@ def verify_mbtiles(db_path):
     finally:
         conn.close()
 
+
+###########################################################################################################################
+###########################################################################################################################
+### MAIN FUNCTION
+###########################################################################################################################
+###########################################################################################################################
 def main():
-    """
-    Orchestrates the map generation process: cleanup, grid calculation,
-    downloading, and SQLite storage with proper MBTiles metadata.
-    """
-    parser = argparse.ArgumentParser(description="TeasiOne MBTiles Generator")
+    """Main application loop with GPLv3 startup notice."""
+    print_gpl_header()
+    
+    parser = argparse.ArgumentParser(description="MBTiles Generator")
     parser.add_argument("--bbox", nargs=4, type=float, required=True, help="min_lat min_lon max_lat max_lon")
     parser.add_argument("--output", default="map.mbtiles", help="Output filename")
     parser.add_argument("--server", choices=SERVERS.keys(), default="osm", help="Map style")
@@ -147,7 +169,6 @@ def main():
     min_lat, min_lon, max_lat, max_lon = args.bbox
     zoom_range = range(args.zooms[0], args.zooms[1] + 1)
     
-    # Clean start: Remove existing files to avoid SQLite conflicts
     if not args.dry_run:
         xml_file = os.path.splitext(args.output)[0] + ".xml"
         for f in [args.output, xml_file]:
@@ -155,7 +176,6 @@ def main():
                 logger.info(f"Deleting existing file: {f}")
                 os.remove(f)
 
-    # Calculate tile grid requirements
     total_expected = 0
     zoom_stats = {}
     for z in zoom_range:
@@ -175,17 +195,16 @@ def main():
     cursor.execute("CREATE TABLE metadata (name text, value text);")
     cursor.execute("CREATE TABLE tiles (zoom_level integer, tile_column integer, tile_row integer, tile_data blob);")
     
-    # Essential MBTiles metadata for MapTiler and GPS device compatibility
     cnt_lon, cnt_lat = (min_lon + max_lon) / 2, (min_lat + max_lat) / 2
     meta_info = [
         ('name', os.path.basename(args.output)),
         ('format', 'jpg'),
-        ('bounds', f"{min_lon},{min_lat},{max_lon},{max_lat}"), # Standard WGS84
+        ('bounds', f"{min_lon},{min_lat},{max_lon},{max_lat}"),
         ('center', f"{cnt_lon},{cnt_lat},{max(zoom_range)}"),
         ('type', 'baselayer'),
         ('version', '1.1'),
-        ('description', f'Teasi cycling map: {args.server}'),
-        ('projection', 'EPSG:3857') # Confirms tiles are Web Mercator
+        ('description', f'MBTiles map generator (GPLv3)'),
+        ('projection', 'EPSG:3857')
     ]
     cursor.executemany("INSERT INTO metadata VALUES (?, ?)", meta_info)
 
@@ -199,19 +218,16 @@ def main():
                 for y in range(min(y1, y2), max(y1, y2) + 1):
                     tile_data = get_tile_with_retry(base_url, zoom, x, y)
                     if tile_data:
-                        # Convert to JPG to save space on SD card
                         img = Image.open(io.BytesIO(tile_data)).convert("RGB")
                         buf = io.BytesIO()
                         img.save(buf, format="JPEG", quality=args.quality)
-                        
-                        # TMS flip: MBTiles counts Y from bottom up
                         tms_y = (pow(2, zoom) - 1) - y
                         cursor.execute("INSERT INTO tiles VALUES (?, ?, ?, ?)", 
                                      (zoom, x, tms_y, sqlite3.Binary(buf.getvalue())))
                     
                     processed += 1
                     if processed % 50 == 0: logger.info(f"Zoom {zoom}: {processed}/{count}...")
-                    time.sleep(0.1) # Be polite to community servers
+                    time.sleep(0.1)
                 conn.commit()
     except KeyboardInterrupt:
         logger.warning("Download interrupted.")
